@@ -1,1 +1,4 @@
-/home/pesartain/webspace/testgit => {master=http://pesartain.com/tar/.git,left=http://pesartain.com/tar/.git/}
+/home/pesartain/webspace/testgit => {master=http://pesartain.com/tar/.git,right=http://pesartain.com/tar/.git/}
+/home/pesartain/webspace/testgita => {master=http://pesartain.com/tar/.git,middle=http://pesartain.com/tar/.git/}
+/home/pesartain/webspace/testgitb => {master=http://pesartain.com/tar/.git}
+/home/pesartain/webspace/testgitc => {left=http://pesartain.com/tar/.git/}

@@ -29,8 +29,8 @@ define("_GIT_BIN","git --no-pager ");
  * Parses the file in _GITLIST and returns array( $directory , $sources )
  * where $directory is a numerically keyed array of git directories 
  * locally and $sources is an array of sources, keyed the same as $directory.
- * Each $source[] item is itself an array of all sources keyed to that directory in
- * a further array containing the branch and the URL.
+ * Each $source[] item is itself an array of all sources keyed to that directory
+ * in a further array containing the branch and the URL.
  *
  * The BRANCH is the branch to pull from on the remote URL.
  */
@@ -49,6 +49,7 @@ function parse_list() {
 	}
 	
 	foreach($sources as $key => $source) {
+		$tmp = null;
 		foreach($source as $item) {
 			$tmp[]=explode("=",$item);
 		}
@@ -59,32 +60,36 @@ function parse_list() {
 }
 
 /*
- * Takes a local directory as a string, a \n-separated string of sources, and
- * a line number and saves the values back to the file specified in _GITLIST.
+ * Accept a directory string and an array of arrays ($sources) containing 
+ * the URL and the branch to pull from.
+ *
+ * This function rewrites the entire _GITLIST file
  */
-function save_list($dir_str, $source_str, $id) {
+function save_list($dir_str, $sources, $id) {
 
 	// Build a complete line to write back
-	$line = $dir_str." => {".rtrim($source_str,"\x00..\x1F,")."}";
+
+	$s_str = '{';
+	foreach($sources as $source) {
+		$s_str .= "${source[0]}=${source[1]},";
+	}
+	$s_str = rtrim($s_str,",")."}";
+	
+	
+	$saved_line = $dir_str." => ".$s_str;
 
 	$file = file(_GITLIST);
-	
+	$handle = fopen(_GITLIST,'w');
+
+	$i = 0;	
 	foreach($file as $line) {
-		//echo $line;
-		
-		// Perl-style regex:  /regex/
-		preg_match("/(.*) => {(.*)}/",$line,$match);
-		// First part is the directory
-		$directory[] = $match[1];
-		// Second part is a comma-separated list of sources
-		$sources[] = explode(",",$match[2]);
+		if ($id == $i++) {
+			fwrite($handle,$saved_line."\n");
+		} else {
+			fwrite($handle,$line);
+		}
 	}
 	
-
-}
-
-function save_all($directories, $sources) {
-
 }
 
 /*
@@ -92,49 +97,56 @@ function save_all($directories, $sources) {
  * a html view.
  */
 function print_dir($directory, $sources, $id) {	
-
-	$sls = "";
-	foreach ($sources as $source) {
-		$sls .= $source.',&#012;';
-	}
 	
 	$str = "
+	
 	<form method='"._STYPE."' action='".$_SERVER['PHP_SELF']."'>
-	
 	<input type='hidden' name='id' value='$id'></input>
-	
+
 	<table>
 	<tr>
-		<td>	
+		<td colspan=2>	
 		<input type='text' name='dir' value='".htmlspecialchars($directory)."' size='40'></input>
 		</td>
-		<td rowspan=3>
-			<textarea name='sources' cols='40' rows='5'>".$sls."</textarea></td>
-		<td></td>
-	</tr>
-	<tr>
 		<td>
-		
-		<select name='action'>
-			<option value='0' selected>Save</option>
-			<option value='1'>Pull</option>
-			<option value='2'>Initialise</option>
-			<option value='3'>Delete</option>
-		</select
-		<input type='submit' name='bsubmit' value='Run'></input>
-		
-				</td>
-		<td></td>
-	</tr>
-	<tr>
-		<td></td>
-		<td></td>
-	</tr>
+			<select name='action'>
+				<option value='0' selected>Save</option>
+				<option value='1'>Pull</option>
+				<option value='2'>Initialise</option>
+				<option value='3'>Delete</option>
+				<option value='4'>Show log</option>
+			</select
+			<input type='submit' name='bsubmit' value='Run'></input>
+		</td>
+	</tr>";
 
+foreach ($sources as $source) {
+	$str .= "
+	<tr><td>
+	<input type='text' name='branch[]' value='${source[0]}' size='10'></input>
+	</td><td>
+	<input type='text' name='url[]' value='${source[1]}' size='26'></input>
+	</td>
+	<td></td></tr>";
+}
+
+	$str .= "
+	<tr><td>
+	<input type='text' name='branch[]' value='' size='10'></input>
+	</td><td>
+	<input type='text' name='url[]' value='' size='26'></input>
+	</td>
+	<td><input type='submit' name='bsubmit' value='Add'></td></tr>		
+	</table>
+	
 	</form>";
 
 	return $str;
 }
+
+/******************
+ * Git functions
+ ******************/
 
 function git_pull_all($directory,$sources) {
 	foreach ($directory as $key => $ls) {
@@ -185,31 +197,46 @@ list($directory,$sources) = parse_list();
 if (isset(${"_"._STYPE}['action'])) {
 	// Handle post-action
 
-	switch(${"_"._STYPE}['action']) {
-		case 0:
-			// Save changes
-			save_list(${"_"._STYPE}['dir'],${"_"._STYPE}['sources'],${"_"._STYPE}['id']);
-		break;
-		case 1:
-			// Pull from sources
-			$rslt = git_pull_all($directory,$sources);
-		break;
-		case 2:
-			// Init new repo
-		break;
-		case 3:
-			// Delete this repo
-		break;
-		case 4:
-			// Git log
-			$rslt = git_log_all($directory);
-		break;
+	if (${"_"._STYPE}['bsubmit'] == "Run") {
+		switch(${"_"._STYPE}['action']) {
+			case 0:
+				// Save changes
+				
+				foreach(${"_"._STYPE}['branch'] as $key => $branch) {
+					$url = ${"_"._STYPE}['url'][$key];
+					if (($url != '') && ($branch != '')) {
+						$source[] = array($branch,$url);
+					}
+				}
+				// Save the changes to file
+				save_list(${"_"._STYPE}['dir'],$source,${"_"._STYPE}['id']);
+				// Then reload the file to propogate the changes
+				list($directory,$sources) = parse_list();
+			
+			break;
+			case 1:
+				// Pull from sources
+				$rslt = git_pull_all($directory,$sources);
+			break;
+			case 2:
+				// Init new repo
+			break;
+			case 3:
+				// Delete this repo
+			break;
+			case 4:
+				// Git log
+				$rslt = git_log_all($directory);
+			break;
+		}
+	} else {
+		echo "";
 	}
-
 }
 
 echo "<html><head></head><body>";
 
+/*
 echo "<form method='"._STYPE."' action='".$_SERVER['PHP_SELF']."'>
 	  <input type='hidden' name='id' value='$id'></input>
 	  <select name='action'>
@@ -221,9 +248,32 @@ echo "<form method='"._STYPE."' action='".$_SERVER['PHP_SELF']."'>
 		</select
 		<input type='submit' name='bsubmit' value='Run'></input>
 	  </form>";
-
-
+*/
 echo "<div id='output'>$rslt</div>";
+
+/*
+print_r($directory);
+echo "<br><br>";
+print_r($sources);
+echo "<br><br>";
+*/
+
+foreach($directory as $key => $dir) {
+	echo print_dir($dir,$sources[$key],$key);
+	
+	/*
+	echo $dir;
+	echo "<br>";
+	foreach($sources[$key] as $source) {
+		echo $source[0]." = ".$source[1];
+		echo "<br>";
+	}
+//	print_r($sources[$key]);
+
+	*/
+	echo "<br><br>";
+	
+}
 
 echo "</body></html>";
 
