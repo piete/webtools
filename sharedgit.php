@@ -69,14 +69,18 @@ function save_list($dir_str, $sources, $id) {
 
 	// Build a complete line to write back
 
-	$s_str = '{';
-	foreach($sources as $source) {
-		$s_str .= "${source[0]}=${source[1]},";
+	$write = false;
+	if ($dir_str != '') {
+		$s_str = '{';
+		foreach($sources as $source) {
+			$s_str .= "${source[0]}=${source[1]},";
+		}
+		$s_str = rtrim($s_str,",")."}";
+
+
+		$saved_line = $dir_str." => ".$s_str;
+		$write = true;
 	}
-	$s_str = rtrim($s_str,",")."}";
-	
-	
-	$saved_line = $dir_str." => ".$s_str;
 
 	$file = file(_GITLIST);
 	$handle = fopen(_GITLIST,'w');
@@ -84,12 +88,20 @@ function save_list($dir_str, $sources, $id) {
 	$i = 0;	
 	foreach($file as $line) {
 		if ($id == $i++) {
-			fwrite($handle,$saved_line."\n");
+			if ($write) {
+				fwrite($handle,$saved_line."\n");
+				$write = false;
+			}
 		} else {
 			fwrite($handle,$line);
 		}
 	}
 	
+	if ($write) {
+		fwrite($handle,$saved_line."\n");
+	}
+	
+	fclose($handle);
 }
 
 /*
@@ -136,7 +148,7 @@ foreach ($sources as $source) {
 	</td><td>
 	<input type='text' name='url[]' value='' size='26'></input>
 	</td>
-	<td><input type='submit' name='bsubmit' value='Add'></td></tr>		
+	<td></td></tr>		
 	</table>
 	
 	</form>";
@@ -172,6 +184,37 @@ function git_pull_all($directory,$sources) {
 	return $str;
 }
 
+function git_pull($directory,$sources) {
+
+	$d = explode('/',$directory,-1);
+	$directory = implode('/',$d);
+	chdir($directory);
+
+	foreach($sources as $source) {
+
+		if (file_exists($directory."/.git")) {
+			$cmd = "GIT_SSL_NO_VERIFY=1 "._GIT_BIN." pull ".$source[1]." ".$source[0].' 2>&1';
+		} else {
+			$cmd = "GIT_SSL_NO_VERIFY=1 "._GIT_BIN." clone ".$source[1].' 2>&1';
+		}
+
+		$str .= $cmd."<br>";
+
+		exec($cmd, $output, $retval);
+
+		$str .= "Returned: ".$retval."<br>";
+		foreach($output as $line) {
+			$str .= $line."<br>";
+		}
+	}
+	return $str;
+
+}
+
+/*
+ * Run `git log` on a all git repos in the array $directory and 
+ * return the results.
+ */
 function git_log_all($directory) {
 	foreach ($directory as $key => $ls) {
 		chdir($ls);
@@ -186,6 +229,21 @@ function git_log_all($directory) {
 		}
 	}
 	return $str;
+}
+
+/*
+ * Run `git log` on a given directory and return the results.
+ */
+function git_log($dir) {
+	chdir($dir);
+	$cmd = _GIT_BIN." log 2>\&1";
+	$str .= $cmd."<br>";
+
+	exec($cmd, $output, $retval);
+	foreach($output as $line) {
+		$str .= $line."<br>";
+	}
+	return $str;	
 }
 
 /******************
@@ -216,7 +274,9 @@ if (isset(${"_"._STYPE}['action'])) {
 			break;
 			case 1:
 				// Pull from sources
-				$rslt = git_pull_all($directory,$sources);
+				//$rslt = git_pull_all($directory,$sources);
+				$id = ${"_"._STYPE}['id'];
+				$rslt = git_pull($directory[$id],$sources[$id]);
 			break;
 			case 2:
 				// Init new repo
@@ -226,7 +286,8 @@ if (isset(${"_"._STYPE}['action'])) {
 			break;
 			case 4:
 				// Git log
-				$rslt = git_log_all($directory);
+				//$rslt = git_log_all($directory);
+				$rslt = git_log(${"_"._STYPE}['dir']);
 			break;
 		}
 	} else {
@@ -249,7 +310,7 @@ echo "<form method='"._STYPE."' action='".$_SERVER['PHP_SELF']."'>
 		<input type='submit' name='bsubmit' value='Run'></input>
 	  </form>";
 */
-echo "<div id='output'>$rslt</div>";
+echo "<div id='output'><pre>".$rslt."</pre></div>";
 
 /*
 print_r($directory);
@@ -274,6 +335,8 @@ foreach($directory as $key => $dir) {
 	echo "<br><br>";
 	
 }
+	echo print_dir('',array(),$key+1);
+
 
 echo "</body></html>";
 
