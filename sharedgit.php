@@ -17,10 +17,17 @@
  * Settings
  ******************/
 
-define("_GITLIST","sharedgit.list");
-define("_STYPE","GET");
-define("_GIT_BIN","git --no-pager ");
+//$subdirserver = explode(".",$_SERVER['SERVER_NAME']);
 
+if ($_SERVER['SERVER_NAME'] == "pesartain.com") {
+	define("_GITLIST","sharedgit.list");
+	define("_STYPE","POST");
+	define("_GIT_BIN","/home/pesar2/git/bin/git --no-pager ");
+} else {
+	define("_GITLIST","sharedgit.list");
+	define("_STYPE","GET");
+	define("_GIT_BIN","git --no-pager ");
+}	
 /******************
  * Functions
  ******************/
@@ -186,8 +193,12 @@ function git_pull_all($directory,$sources) {
 
 function git_pull($directory,$sources) {
 
-	$d = explode('/',$directory,-1);
-	$directory = implode('/',$d);
+	$d = explode('/',$directory);
+	$x = 0;
+	$directory = '';
+	for ($x = 1; $x < count($d)-1; $x++) {
+		$directory .= '/'.$d[$x];
+	}
 	chdir($directory);
 
 	foreach($sources as $source) {
