@@ -193,19 +193,22 @@ function git_pull_all($directory,$sources) {
 
 function git_pull($directory,$sources) {
 
+	$fulldir = $directory;
+
 	$d = explode('/',$directory);
 	$x = 0;
 	$directory = '';
 	for ($x = 1; $x < count($d)-1; $x++) {
 		$directory .= '/'.$d[$x];
 	}
-	chdir($directory);
 
 	foreach($sources as $source) {
 
 		if (file_exists($directory."/.git")) {
+			chdir($fulldir);
 			$cmd = "GIT_SSL_NO_VERIFY=1 "._GIT_BIN." pull ".$source[1]." ".$source[0].' 2>&1';
 		} else {
+			chdir($directory);
 			$cmd = "GIT_SSL_NO_VERIFY=1 "._GIT_BIN." clone ".$source[1].' 2>&1';
 		}
 
