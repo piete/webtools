@@ -204,7 +204,7 @@ function git_pull($directory,$sources) {
 
 	foreach($sources as $source) {
 
-		if (file_exists($directory."/.git")) {
+		if (file_exists($fulldir."/.git")) {
 			chdir($fulldir);
 			$cmd = "GIT_SSL_NO_VERIFY=1 "._GIT_BIN." pull ".$source[1]." ".$source[0].' 2>&1';
 		} else {
