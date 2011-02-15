@@ -9,10 +9,42 @@ $uname="";
 $upasswd="";
 $udb="";
 
-	$db = mysql_connect("localhost",$uname,$upasswd);
+$dbinfo = array("username"=>$uname, "password"=>$upasswd, "database"=>$udb, "hostname"=>"localhost");
 
-function testdb($db,$udb)
-{
+$db = mysql_connect("localhost",$uname,$upasswd);
+
+function backup($dbinfo) {
+	// Make a backup of this entire database to file.
+	// Filename is:
+	$backupname = strftime("backups/localhost-".$dbinfo['database']."_%Y%m%d-%H%M%S.sql");
+	$retval = false;
+
+	$cmd = "mysqldump --add-drop-table -B ".$dbinfo['database']." -h ".$dbinfo['hostname']." -u ".$dbinfo['username']." --password=".$dbinfo['password']." > ".$backupname;
+
+	printf("Attempting to backup database ... ");
+	system($cmd, $success);
+
+	switch($success) {
+	case 0: printf(" success! Saved to $backupname.<br />"); break;
+	case 1: printf(" malformed command line.<br />"); break;
+	case 2: printf(" incorrect password.<br />"); break;
+	}
+
+	if ($success != 0) {
+		// Clean up after ourselves.
+		system("rm $backupname");
+		$retval = false;
+	} else {
+		// Or zip up the results
+		system("bzip2 $backupname");
+		$retval = true;
+	}
+
+	return $retval;
+}
+
+
+function testdb($db,$udb) {
 // The user & database should already have been created
 	if (!mysql_select_db($udb,$db)) {
 		printf("Connection failed: ".mysql_error($db)."<br>");
@@ -22,9 +54,13 @@ function testdb($db,$udb)
 		
 }
 
-function install($db,$udb,$fname)
-{
-mysql_select_db($udb,$db);
+function install($db,$udb,$fname,$dbinfo) {
+	mysql_select_db($udb,$db);
+
+	if (!backup($dbinfo)) {
+		printf("Backup failed. Cowardly refusing to continue.<br><a href='?typ=forms'>Return</a>");
+		return;
+	}
 
 // Load the file into a variable, it gets loaded as an array
 //$mytxt = file(dirname(__FILE__) . '/' . 'sqlsetup/setupWSE' . '.sql');
@@ -188,7 +224,7 @@ case "test":
 	testdb($db,$udb);
 	break;
 case "install":
-	install($db,$udb,$_GET["file"]);
+	install($db,$udb,$_GET["file"], $dbinfo);
 	break;
 case "delete";
 	
@@ -209,7 +245,7 @@ case "iall":
 			//echo $farray[$flen-1];
 			
 			if ($issql) {
-				install($db,$udb,$entry);
+				install($db,$udb,$entry, $dbinfo);
 			}
 		}
 	}
@@ -252,7 +288,7 @@ case "reset":
 			
 			if ($issql) {
 				runsql($db,$udb,"DROP TABLE ".$farray[0]);
-				install($db,$udb,$entry);
+				install($db,$udb,$entry, $dbinfo);
 			}
 		}
 	}
