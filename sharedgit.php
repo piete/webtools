@@ -134,7 +134,7 @@ function print_dir($directory, $sources, $id) {
 				<option value='2'>Initialise</option>
 				<option value='3'>Delete</option>
 				<option value='4'>Show log</option>
-			</select
+			</select>
 			<input type='submit' name='bsubmit' value='Run'></input>
 		</td>
 	</tr>";
