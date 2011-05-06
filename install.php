@@ -43,7 +43,6 @@ function backup($dbinfo) {
 	return $retval;
 }
 
-
 function testdb($db,$udb) {
 // The user & database should already have been created
 	if (!mysql_select_db($udb,$db)) {
@@ -159,6 +158,8 @@ th {background-color: #cceeff;}
 <h4>Database test utilities</h4>
 <a href="?typ=test">Test database connection</a><br><br>
 
+<a href="?typ=backup">Backup database</a><br><br>
+
 <a href="?typ=delall">Clear all tables</a><br><br>
 
 <a href="?typ=iall">Install all SQL</a><br><br>
@@ -226,7 +227,21 @@ case "test":
 case "install":
 	install($db,$udb,$_GET["file"], $dbinfo);
 	break;
-case "delete";
+case "backup":
+
+	if (!backup($dbinfo)) {
+		printf("Backup failed. Cowardly refusing to continue.<br><a href='?typ=forms'>Return</a>");
+		return;
+	} else {
+		printf("Backup completed. Nice. <br><a href='?typ=forms'>Return</a>");
+	}
+	break;
+case "delete":
+	
+	if (!backup($dbinfo)) {
+		printf("Backup failed. Cowardly refusing to continue.<br><a href='?typ=forms'>Return</a>");
+		return;
+	}
 	
 	$farray = explode(".",$_GET["file"]);
 	runsql($db,$udb,"DROP TABLE ".$farray[0]);
@@ -274,6 +289,11 @@ $d->close();
 
 	break;
 case "reset":
+
+	if (!backup($dbinfo)) {
+		printf("Backup failed. Cowardly refusing to continue.<br><a href='?typ=forms'>Return</a>");
+		return;
+	}
 
 	$d = dir(".");
 	while (false !== ($entry = $d->read())) {
